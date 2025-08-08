@@ -110,30 +110,31 @@ body.mobile .mobile-only { display: block; }
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: 9999;
 }
 
 #joyLeft {
   position: absolute;
   left: 16px;
   bottom: env(safe-area-inset-bottom, 16px);
-  width: 140px;
-  height: 140px;
-  background: rgba(255,255,255,0.06);
+  width: 160px;
+  height: 160px;
+  background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 999px;
   pointer-events: auto;
+  touch-action: none;
 }
 
 #joyLeft .stick {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 64px;
-  height: 64px;
-  margin-left: -32px;
-  margin-top: -32px;
-  background: rgba(255,255,255,0.15);
+  width: 70px;
+  height: 70px;
+  margin-left: -35px;
+  margin-top: -35px;
+  background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.35);
   border-radius: 999px;
 }
@@ -145,19 +146,19 @@ body.mobile .mobile-only { display: block; }
   display: grid;
   grid-template-columns: repeat(2, minmax(88px, 1fr));
   gap: 10px;
-  width: 200px;
+  width: 220px;
   pointer-events: auto;
+  touch-action: none;
 }
 
 #rightButtons .btn {
-  padding: 10px 12px;
-  font-size: 14px;
+  padding: 12px 14px;
+  font-size: 15px;
   color: #e9f1ff;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 12px;
   backdrop-filter: blur(8px);
-  touch-action: none;
 }
 
 @media (max-width: 850px) {

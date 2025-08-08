@@ -54,6 +54,7 @@ function createScene() {
   scene.clearColor = new BABYLON.Color4(0.01, 0.02, 0.05, 1);
 
   const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 1.8, -6), scene);
+  scene.activeCamera = camera;
   camera.attachControl(canvas, true);
   camera.inertia = 0.2;
   camera.angularSensibility = 3000;
@@ -93,6 +94,13 @@ function createScene() {
   const wall3 = BABYLON.MeshBuilder.CreateBox('wall3', { width: 1, height: 6, depth: 50 }, scene); wall3.position = new BABYLON.Vector3(25, 3, 0);
   const wall4 = wall3.clone('wall4'); wall4.position = new BABYLON.Vector3(-25, 3, 0);
   wall1.material = wall2.material = wall3.material = wall4.material = wallMat;
+
+  // Visible marker cube
+  const marker = BABYLON.MeshBuilder.CreateBox('marker', { size: 0.5 }, scene);
+  marker.position = new BABYLON.Vector3(0, 1, -2);
+  const markerMat = new BABYLON.StandardMaterial('markerMat', scene);
+  markerMat.emissiveColor = new BABYLON.Color3(0.1, 0.9, 0.2);
+  marker.material = markerMat;
 
   // Player entity
   player = {
@@ -302,6 +310,7 @@ function createScene() {
   // Floating damage text using GUI
   const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
   function floatingText(text, worldPos, color = '#fff') {
+    // iOS: avoid linking to non-mesh; compute screen coords instead
     const label = new BABYLON.GUI.TextBlock();
     label.text = text;
     label.color = color;
@@ -311,12 +320,16 @@ function createScene() {
     advancedTexture.addControl(label);
     let t = 0;
     const start = worldPos.clone();
-    scene.onBeforeRenderObservable.add(() => {
+    const obs = scene.onBeforeRenderObservable.add(() => {
       t += scene.getEngine().getDeltaTime() / 1000;
       const pos = start.add(new BABYLON.Vector3(0, t * 1.2, 0));
-      label.linkWithMesh({ position: pos });
+      const proj = BABYLON.Vector3.Project(pos, BABYLON.Matrix.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight()));
+      label.left = proj.x - engine.getRenderWidth() / 2;
+      label.top = proj.y - engine.getRenderHeight() / 2;
       label.alpha = Math.max(0, 1 - t);
       if (t > 1.2) {
+        advancedTexture.removeControl(label);
+        scene.onBeforeRenderObservable.remove(obs);
         label.dispose();
       }
     });
