@@ -186,6 +186,7 @@ function createScene() {
     const hitProxy = BABYLON.MeshBuilder.CreateCapsule(`${humanoid.root.name}_col`, { height: 1.8, radius: 0.4 }, scene);
     hitProxy.position = pos.clone();
     hitProxy.isVisible = false;
+    hitProxy.checkCollisions = true;
     enemy.root.metadata = { proxy: hitProxy };
     enemies.push(enemy);
     return enemy;
@@ -399,9 +400,10 @@ function createScene() {
       e.parts.legR.rotation.x = Math.cos(e.t * 3) * 0.3;
       e.parts.armL.rotation.x = Math.cos(e.t * 3) * 0.2;
       e.parts.armR.rotation.x = Math.sin(e.t * 3) * 0.2;
-      e.root.position.y = 0 + bob + 0.8;
-      if (e.root.metadata && e.root.metadata.proxy) {
-        e.root.metadata.proxy.position.copyFrom(e.root.position);
+      const proxy = e.root.metadata && e.root.metadata.proxy;
+      if (proxy) {
+        e.root.position.copyFrom(proxy.position);
+        e.root.position.y = proxy.position.y + bob + 0.8;
       }
     });
   });
@@ -452,11 +454,15 @@ function createScene() {
     // Enemy chase
     enemies.forEach((e) => {
       if (e.root.isDisposed()) return;
-      const toPlayer = camera.position.subtract(e.root.position);
+      const proxy = e.root.metadata && e.root.metadata.proxy;
+      const fromPos = proxy ? proxy.position : e.root.position;
+      const toPlayer = camera.position.subtract(fromPos);
       const distance = toPlayer.length();
       if (distance < 20) {
         const dirN = toPlayer.normalize();
-        e.root.moveWithCollisions(dirN.scale(e.speed * dt));
+        if (proxy) {
+          proxy.moveWithCollisions(dirN.scale(e.speed * dt));
+        }
         e.root.lookAt(camera.position.add(new BABYLON.Vector3(0, 1.4, 0)));
       }
       if (distance < 1.7 && Math.random() < 0.015) {
@@ -473,7 +479,7 @@ function createScene() {
       const origin = camera.position.clone();
       const dirRay = camera.getDirection(BABYLON.Axis.Z);
       const ray = new BABYLON.Ray(origin, dirRay, 3);
-      const pick = scene.pickWithRay(ray, (m) => m.metadata && (m.metadata.type === 'chest' || m.name === 'portal'));
+      const pick = scene.pickWithRay(ray, (m) => (m.metadata && m.metadata.type === 'chest') || m.name === 'portal');
       if (pick && pick.hit && pick.pickedMesh) {
         const m = pick.pickedMesh;
         if (m.metadata && m.metadata.type === 'chest') openChest(m);
@@ -486,7 +492,14 @@ function createScene() {
     currentFloor += 1;
     setMessage(`Ascend to Floor ${currentFloor}`);
     // Clean enemies
-    enemies.slice().forEach((e) => e.root.dispose());
+    enemies.slice().forEach((e) => {
+      if (e.root && !e.root.isDisposed()) {
+        const proxy = e.root.metadata && e.root.metadata.proxy;
+        if (proxy && !proxy.isDisposed()) proxy.dispose();
+        e.root.getChildMeshes().forEach(m => m.dispose());
+        e.root.dispose();
+      }
+    });
     enemies.length = 0;
 
     // Spawn tougher enemies
