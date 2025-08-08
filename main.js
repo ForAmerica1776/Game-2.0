@@ -20,7 +20,7 @@ window.addEventListener('resize', applyHardwareScaling);
 
 let scene;
 let player;
-let input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, attack: false, interact: false };
+let input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, attack: false, interact: false, axisX: 0, axisY: 0 };
 let isPointerLocked = false;
 let currentFloor = 1;
 let ui = {};
@@ -56,8 +56,8 @@ function createScene() {
   const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 1.8, -6), scene);
   scene.activeCamera = camera;
   camera.attachControl(canvas, true);
-  camera.inertia = 0.2;
-  camera.angularSensibility = 3000;
+  camera.inertia = 0.15;
+  camera.angularSensibility = isMobile ? 1200 : 1800;
   camera.minZ = 0.05;
 
   // Pointer lock (desktop only)
@@ -132,23 +132,49 @@ function createScene() {
   sword.material = swordMat;
 
   // Sword hitbox
-  const swordHitbox = BABYLON.MeshBuilder.CreateBox('swordHitbox', { width: 0.2, height: 0.7, depth: 0.4 }, scene);
+  const swordHitbox = BABYLON.MeshBuilder.CreateBox('swordHitbox', { width: 0.3, height: 0.8, depth: 0.6 }, scene);
   swordHitbox.parent = camera;
-  swordHitbox.position = new BABYLON.Vector3(0.6, -0.4, 1.2);
+  swordHitbox.position = new BABYLON.Vector3(0.6, -0.35, 1.35);
   swordHitbox.isVisible = false;
 
   // Enemies management
-  /** @type {{mesh: BABYLON.AbstractMesh, health: number, maxHealth: number, damage: number, speed: number, xp: number}[]} */
+  /** @type {{root: BABYLON.AbstractMesh, parts: Record<string,BABYLON.AbstractMesh>, health: number, maxHealth: number, damage: number, speed: number, xp: number, t:number}[]} */
   const enemies = [];
 
+  function createHumanoid(scene, name = 'enemy') {
+    const root = new BABYLON.TransformNode(name, scene);
+    const torso = BABYLON.MeshBuilder.CreateBox(`${name}_torso`, { width: 0.7, height: 0.9, depth: 0.35 }, scene);
+    const head = BABYLON.MeshBuilder.CreateSphere(`${name}_head`, { diameter: 0.45 }, scene);
+    const legL = BABYLON.MeshBuilder.CreateBox(`${name}_legL`, { width: 0.18, height: 0.7, depth: 0.18 }, scene);
+    const legR = legL.clone(`${name}_legR`);
+    const armL = BABYLON.MeshBuilder.CreateBox(`${name}_armL`, { width: 0.16, height: 0.6, depth: 0.16 }, scene);
+    const armR = armL.clone(`${name}_armR`);
+
+    torso.parent = root; head.parent = root; legL.parent = root; legR.parent = root; armL.parent = root; armR.parent = root;
+    torso.position = new BABYLON.Vector3(0, 1.1, 0);
+    head.position = new BABYLON.Vector3(0, 1.7, 0);
+    legL.position = new BABYLON.Vector3(-0.18, 0.55, 0);
+    legR.position = new BABYLON.Vector3(0.18, 0.55, 0);
+    armL.position = new BABYLON.Vector3(-0.5, 1.2, 0);
+    armR.position = new BABYLON.Vector3(0.5, 1.2, 0);
+
+    const mat = new BABYLON.StandardMaterial(`${name}_mat`, scene);
+    mat.diffuseColor = new BABYLON.Color3(0.85, 0.25, 0.25);
+    mat.emissiveColor = new BABYLON.Color3(0.25, 0.05, 0.05);
+    torso.material = head.material = legL.material = legR.material = armL.material = armR.material = mat;
+
+    return { root, parts: { torso, head, legL, legR, armL, armR } };
+  }
+
   function spawnEnemy(pos) {
-    const body = BABYLON.MeshBuilder.CreateCapsule('enemy', { height: 1.6, radius: 0.35 }, scene);
-    body.position.copyFrom(pos);
-    const mat = new BABYLON.StandardMaterial('enemyMat', scene);
-    mat.diffuseColor = new BABYLON.Color3(0.9, 0.2, 0.2);
-    mat.emissiveColor = new BABYLON.Color3(0.3, 0.05, 0.05);
-    body.material = mat;
-    const enemy = { mesh: body, health: 40, maxHealth: 40, damage: 8, speed: 2.4, xp: 20 };
+    const humanoid = createHumanoid(scene, `enemy_${enemies.length}`);
+    humanoid.root.position.copyFrom(pos);
+    const enemy = { root: humanoid.root, parts: humanoid.parts, health: 60, maxHealth: 60, damage: 10, speed: 3.2, xp: 30, t: Math.random() * Math.PI * 2 };
+    // collision proxy for hits
+    const hitProxy = BABYLON.MeshBuilder.CreateCapsule(`${humanoid.root.name}_col`, { height: 1.8, radius: 0.4 }, scene);
+    hitProxy.position = pos.clone();
+    hitProxy.isVisible = false;
+    enemy.root.metadata = { proxy: hitProxy };
     enemies.push(enemy);
     return enemy;
   }
@@ -194,6 +220,7 @@ function createScene() {
     updateUI();
   }
 
+  // Override earlier spawn loop uses this spawnEnemy
   // Populate floor
   const chestA = spawnChest(new BABYLON.Vector3(3, 0.3, 3));
   const chestB = spawnChest(new BABYLON.Vector3(-8, 0.3, -4));
@@ -252,11 +279,11 @@ function createScene() {
   }
 
   // Simple physics params
-  const moveSpeed = 4.2;
-  const sprintMultiplier = 1.6;
-  const gravity = -18;
-  const jumpSpeed = 7.5;
-  const friction = 8;
+  const moveSpeed = 6.5;
+  const sprintMultiplier = 1.8;
+  const gravity = -22;
+  const jumpSpeed = 8.2;
+  const friction = 10;
 
   // Collisions
   scene.collisionsEnabled = true;
@@ -266,45 +293,59 @@ function createScene() {
   wall1.checkCollisions = wall2.checkCollisions = wall3.checkCollisions = wall4.checkCollisions = true;
   camera.ellipsoid = new BABYLON.Vector3(0.5, 0.9, 0.5);
 
-  // Attack timing
+  // Attack timing and combo
   let canAttack = true;
-  let attackCooldownMs = 400;
+  let comboStep = 0;
+  let attackCooldownMs = 260;
 
   function tryAttack() {
     if (!canAttack) return;
     canAttack = false;
-    swingSword();
-    const enemiesHit = enemies.filter((e) => e.mesh.isDisposed() === false && swordHitbox.intersectsMesh(e.mesh, false));
-    if (enemiesHit.length > 0) {
-      const base = player.stats.attack;
-      const isCrit = Math.random() < player.stats.critChance;
-      const dmg = isCrit ? Math.floor(base * player.stats.critMultiplier) : base;
-      enemiesHit.forEach((e) => {
-        e.health -= dmg;
-        floatingText(`-${dmg}${isCrit ? '!' : ''}`, e.mesh.position, isCrit ? '#ff4081' : '#ffd740');
-        if (e.health <= 0) {
-          floatingText('+XP', e.mesh.position, '#00e676');
-          grantXP(e.xp);
-          e.mesh.dispose();
-          e.health = 0;
-        }
-      });
-    }
+    comboStep = (comboStep + 1) % 3;
+    playAttackAnimation(comboStep);
+
+    // Damage window mid-swing
+    setTimeout(() => applySwordDamage(), 120);
     setTimeout(() => { canAttack = true; }, attackCooldownMs);
   }
 
-  function swingSword() {
-    // quick tween by rotating the sword around Y
-    const anim = new BABYLON.Animation('swing', 'rotation.y', 60, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
-    const start = sword.rotation.y;
-    const keys = [
-      { frame: 0, value: start },
-      { frame: 6, value: start - 1.1 },
-      { frame: 12, value: start - 0.2 },
+  function applySwordDamage() {
+    const hits = enemies.filter((e) => !e.root.isDisposed() && swordHitbox.intersectsMesh(e.root.metadata.proxy, false));
+    if (hits.length === 0) return;
+    const base = player.stats.attack;
+    const isCrit = Math.random() < player.stats.critChance;
+    const dmg = isCrit ? Math.floor(base * player.stats.critMultiplier) : base;
+    hits.forEach((e) => {
+      e.health -= dmg;
+      const p = e.root.position.clone(); p.y += 1.6;
+      floatingText(`-${dmg}${isCrit ? '!' : ''}`, p, isCrit ? '#ff4081' : '#ffd740');
+      if (e.health <= 0) {
+        grantXP(e.xp);
+        e.root.metadata.proxy.dispose();
+        e.root.getChildMeshes().forEach(m => m.dispose());
+        e.root.dispose();
+      }
+    });
+  }
+
+  function playAttackAnimation(step) {
+    const base = sword.rotationQuaternion || BABYLON.Quaternion.FromEulerVector(sword.rotation);
+    sword.rotationQuaternion = base.clone();
+    const anim = new BABYLON.Animation('atk', 'rotationQuaternion', 60, BABYLON.Animation.ANIMATIONTYPE_QUATERNION, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+    const q0 = sword.rotationQuaternion.clone();
+    const swings = [
+      BABYLON.Quaternion.FromEulerAngles(0.25, -1.2, 0.2),
+      BABYLON.Quaternion.FromEulerAngles(0.05, -0.9, -0.4),
+      BABYLON.Quaternion.FromEulerAngles(0.35, -1.4, 0.6),
     ];
-    anim.setKeys(keys);
+    const q1 = swings[step];
+    anim.setKeys([
+      { frame: 0, value: q0 },
+      { frame: 6, value: q1 },
+      { frame: 12, value: q0 },
+    ]);
     sword.animations = [anim];
-    scene.beginAnimation(sword, 0, 12, false, 1.5);
+    scene.beginAnimation(sword, 0, 12, false, 1.8);
   }
 
   // Floating damage text using GUI
@@ -335,37 +376,51 @@ function createScene() {
     });
   }
 
-  // Simple enemy AI update
+  // Enemy idle/bob and proxy sync
+  scene.onBeforeRenderObservable.add(() => {
+    const dt = engine.getDeltaTime() / 1000;
+    enemies.forEach((e) => {
+      if (e.root.isDisposed()) return;
+      e.t += dt * 2.5;
+      const bob = Math.sin(e.t) * 0.05;
+      e.parts.legL.rotation.x = Math.sin(e.t * 3) * 0.3;
+      e.parts.legR.rotation.x = Math.cos(e.t * 3) * 0.3;
+      e.parts.armL.rotation.x = Math.cos(e.t * 3) * 0.2;
+      e.parts.armR.rotation.x = Math.sin(e.t * 3) * 0.2;
+      e.root.position.y = 0 + bob + 0.8;
+      if (e.root.metadata && e.root.metadata.proxy) {
+        e.root.metadata.proxy.position.copyFrom(e.root.position);
+      }
+    });
+  });
+
+  // Update loop modifications: include analog axes
   scene.onBeforeRenderObservable.add(() => {
     const dt = engine.getDeltaTime() / 1000;
 
-    // Movement vector from inputs relative to camera
     const forward = camera.getDirection(BABYLON.Axis.Z);
     const right = camera.getDirection(BABYLON.Axis.X);
-    forward.y = 0; right.y = 0;
-    forward.normalize(); right.normalize();
+    forward.y = 0; right.y = 0; forward.normalize(); right.normalize();
 
-    let desired = new BABYLON.Vector3(0, player.velocity.y, 0);
+    // Use digital or analog
+    let analog = new BABYLON.Vector3(right.x * input.axisX + forward.x * input.axisY, 0, right.z * input.axisX + forward.z * input.axisY);
+    let desired = analog;
     if (input.forward) desired.addInPlace(forward);
     if (input.back) desired.addInPlace(forward.scale(-1));
     if (input.right) desired.addInPlace(right);
     if (input.left) desired.addInPlace(right.scale(-1));
+
     let speed = moveSpeed * (input.sprint ? sprintMultiplier : 1);
-    if (desired.length() > 0.001) {
-      desired = desired.normalize().scale(speed);
-    }
+    if (desired.length() > 0.001) desired = desired.normalize().scale(speed);
 
     // Y velocity and jump
     player.velocity.y += gravity * dt;
-    if (input.jump && player.onGround) {
-      player.velocity.y = jumpSpeed;
-      player.onGround = false;
-    }
+    if (input.jump && player.onGround) { player.velocity.y = jumpSpeed; player.onGround = false; }
 
     // Horizontal smoothing
     const horizontalVel = new BABYLON.Vector3(player.velocity.x, 0, player.velocity.z);
     const targetHorizontal = new BABYLON.Vector3(desired.x, 0, desired.z);
-    const accel = 20;
+    const accel = 26;
     const diff = targetHorizontal.subtract(horizontalVel);
     const step = clamp(diff.length(), 0, accel * dt);
     if (diff.length() > 0.0001) {
@@ -378,43 +433,30 @@ function createScene() {
     player.velocity.x -= clamp(player.velocity.x, -friction, friction) * dt;
     player.velocity.z -= clamp(player.velocity.z, -friction, friction) * dt;
 
-    // Apply movement
     camera.cameraDirection.addInPlace(player.velocity.scale(dt));
 
-    // Simple ground check
-    if (camera.position.y <= 1.8) {
-      camera.position.y = 1.8;
-      if (player.velocity.y < 0) player.velocity.y = 0;
-      player.onGround = true;
-    } else {
-      player.onGround = false;
-    }
+    if (camera.position.y <= 1.8) { camera.position.y = 1.8; if (player.velocity.y < 0) player.velocity.y = 0; player.onGround = true; } else { player.onGround = false; }
 
-    // Enemies chase and attack
+    // Enemy chase
     enemies.forEach((e) => {
-      if (e.mesh.isDisposed()) return;
-      const toPlayer = camera.position.subtract(e.mesh.position);
+      if (e.root.isDisposed()) return;
+      const toPlayer = camera.position.subtract(e.root.position);
       const distance = toPlayer.length();
-      if (distance < 18) {
+      if (distance < 20) {
         const dirN = toPlayer.normalize();
-        e.mesh.moveWithCollisions(dirN.scale(e.speed * dt));
-        e.mesh.lookAt(camera.position.add(new BABYLON.Vector3(0, 1.4, 0)));
+        e.root.moveWithCollisions(dirN.scale(e.speed * dt));
+        e.root.lookAt(camera.position.add(new BABYLON.Vector3(0, 1.4, 0)));
       }
-      // Enemy attack if very close
-      if (distance < 1.8 && Math.random() < 0.01) {
+      if (distance < 1.7 && Math.random() < 0.015) {
         player.stats.health -= e.damage;
         floatingText(`-${e.damage}`, camera.position.add(new BABYLON.Vector3(0, 1.6, 0)), '#ff5252');
-        if (player.stats.health <= 0) {
-          player.stats.health = 0;
-          updateUI();
-          setMessage('You were defeated. Press R to retry.', 0);
-        } else {
-          updateUI();
-        }
+        updateUI();
       }
     });
+  });
 
-    // Interactions (chests, portal)
+  // Interactions (chests, portal)
+  scene.onBeforeRenderObservable.add(() => {
     if (input.interact) {
       const origin = camera.position.clone();
       const dirRay = camera.getDirection(BABYLON.Axis.Z);
@@ -432,7 +474,7 @@ function createScene() {
     currentFloor += 1;
     setMessage(`Ascend to Floor ${currentFloor}`);
     // Clean enemies
-    enemies.slice().forEach((e) => e.mesh.dispose());
+    enemies.slice().forEach((e) => e.root.dispose());
     enemies.length = 0;
 
     // Spawn tougher enemies
@@ -544,4 +586,48 @@ function setupMobileControls() {
   if (btnUse) press(btnUse, () => { input.interact = true; setTimeout(() => input.interact = false, 120); });
   if (btnJump) press(btnJump, () => { input.jump = true; setTimeout(() => input.jump = false, 120); });
   if (btnSprint) press(btnSprint, () => { input.sprint = true; }, () => { input.sprint = false; });
+
+  // Also map stick position to analog axes continuously
+  function updateAxesFromStick(dx, dy) {
+    const maxRadius = 60;
+    const normX = Math.max(-1, Math.min(1, dx / maxRadius));
+    const normY = Math.max(-1, Math.min(1, dy / maxRadius));
+    input.axisX = normX; // right is +
+    input.axisY = -normY; // up is +
+  }
+
+  area.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    activeId = t.identifier;
+    const rect = area.getBoundingClientRect();
+    center.x = rect.left + rect.width / 2;
+    center.y = rect.top + rect.height / 2;
+    const dx = t.clientX - center.x;
+    const dy = t.clientY - center.y;
+    updateStick(dx, dy);
+    updateAxesFromStick(dx, dy);
+  }, { passive: true });
+
+  area.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === activeId) {
+        const dx = t.clientX - center.x;
+        const dy = t.clientY - center.y;
+        updateStick(dx, dy);
+        updateAxesFromStick(dx, dy);
+        break;
+      }
+    }
+  }, { passive: true });
+
+  area.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === activeId) {
+        activeId = null;
+        resetStick();
+        input.axisX = 0; input.axisY = 0;
+        break;
+      }
+    }
+  });
 }
