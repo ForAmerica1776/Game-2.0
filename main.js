@@ -3,20 +3,32 @@
 
 const canvas = document.getElementById('renderCanvas');
 /** @type {BABYLON.Engine} */
-const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: false, stencil: false, antialias: true, powerPreference: 'high-performance' });
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: false, stencil: false, antialias: true, adaptToDeviceRatio: false });
 
-const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-if (isMobile) {
-  document.body.classList.add('mobile');
-}
+const isTouch = ("ontouchstart" in window) || (navigator.maxTouchPoints || 0) > 0;
+const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isMobile = isTouch || isMobileUA;
+if (isMobile) document.body.classList.add('mobile');
 
 function applyHardwareScaling() {
-  const ratio = window.devicePixelRatio || 1;
-  const scale = Math.min(3, Math.max(1, ratio * 1.2));
-  engine.setHardwareScalingLevel(scale);
+  if (isMobile) {
+    engine.setHardwareScalingLevel(2); // downscale for performance but avoid extreme values on iOS
+  } else {
+    engine.setHardwareScalingLevel(1);
+  }
 }
 applyHardwareScaling();
-window.addEventListener('resize', applyHardwareScaling);
+window.addEventListener('resize', () => { applyHardwareScaling(); engine.resize(); });
+
+// Global error handlers to surface issues on devices without consoles
+window.onerror = function(msg, url, line, col, error) {
+  const m = document.getElementById('message');
+  if (m) m.textContent = `Error: ${msg}`;
+};
+window.onunhandledrejection = function(e) {
+  const m = document.getElementById('message');
+  if (m) m.textContent = `Uncaught: ${e.reason && e.reason.message ? e.reason.message : e.reason}`;
+};
 
 let scene;
 let player;
@@ -630,4 +642,8 @@ function setupMobileControls() {
       }
     }
   });
+}
+
+if (isMobile) {
+  setupMobileControls();
 }
