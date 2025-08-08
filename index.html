@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Skyspire: Tower of Blades</title>
+    <link rel="stylesheet" href="/workspace/styles.css" />
+  </head>
+  <body>
+    <div id="ui">
+      <div id="hud">
+        <div class="bar">
+          <div id="healthBar" class="fill"></div>
+          <span id="healthText" class="label">HP 100/100</span>
+        </div>
+        <div class="bar xp">
+          <div id="xpBar" class="fill"></div>
+          <span id="xpText" class="label">LV 1 | XP 0/100</span>
+        </div>
+        <div id="floorText" class="pill">Floor 1</div>
+        <div id="message" class="message"></div>
+        <div id="controls" class="pill small">WASD: Move | Mouse: Look | LMB: Attack | E: Interact | Shift: Sprint | Space: Jump</div>
+      </div>
+      <div id="crosshair">+</div>
+    </div>
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- Babylon.js core and GUI from CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    <script src="/workspace/main.js"></script>
+  </body>
+</html>
