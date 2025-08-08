@@ -101,3 +101,66 @@ html, body {
   right: 16px;
   top: 16px;
 }
+
+/* Mobile controls */
+.mobile-only { display: none; }
+body.mobile .mobile-only { display: block; }
+
+#mobileControls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#joyLeft {
+  position: absolute;
+  left: 16px;
+  bottom: env(safe-area-inset-bottom, 16px);
+  width: 140px;
+  height: 140px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 999px;
+  pointer-events: auto;
+}
+
+#joyLeft .stick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 64px;
+  margin-left: -32px;
+  margin-top: -32px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 999px;
+}
+
+#rightButtons {
+  position: absolute;
+  right: 16px;
+  bottom: env(safe-area-inset-bottom, 16px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(88px, 1fr));
+  gap: 10px;
+  width: 200px;
+  pointer-events: auto;
+}
+
+#rightButtons .btn {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #e9f1ff;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  touch-action: none;
+}
+
+@media (max-width: 850px) {
+  body .pill#controls { display: none; }
+  body .mobile-only { display: block; }
+}

@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Skyspire: Tower of Blades</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -23,6 +24,19 @@
       </div>
       <div id="crosshair">+</div>
     </div>
+
+    <div id="mobileControls" class="mobile-only">
+      <div id="joyLeft" class="joystick-area">
+        <div id="joyLeftStick" class="stick"></div>
+      </div>
+      <div id="rightButtons">
+        <button id="btnAtk" class="btn">Attack</button>
+        <button id="btnUse" class="btn">Interact</button>
+        <button id="btnJump" class="btn">Jump</button>
+        <button id="btnSprint" class="btn">Sprint</button>
+      </div>
+    </div>
+
     <canvas id="renderCanvas"></canvas>
 
     <!-- Babylon.js core and GUI from CDN -->

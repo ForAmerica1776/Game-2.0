@@ -3,7 +3,20 @@
 
 const canvas = document.getElementById('renderCanvas');
 /** @type {BABYLON.Engine} */
-const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: false, stencil: false, antialias: true, powerPreference: 'high-performance' });
+
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if (isMobile) {
+  document.body.classList.add('mobile');
+}
+
+function applyHardwareScaling() {
+  const ratio = window.devicePixelRatio || 1;
+  const scale = Math.min(3, Math.max(1, ratio * 1.2));
+  engine.setHardwareScalingLevel(scale);
+}
+applyHardwareScaling();
+window.addEventListener('resize', applyHardwareScaling);
 
 let scene;
 let player;
@@ -46,26 +59,28 @@ function createScene() {
   camera.angularSensibility = 3000;
   camera.minZ = 0.05;
 
-  // Pointer lock
-  canvas.addEventListener('click', () => {
-    if (!isPointerLocked) {
-      canvas.requestPointerLock();
-    }
-  });
-  document.addEventListener('pointerlockchange', () => {
-    isPointerLocked = document.pointerLockElement === canvas;
-  });
+  // Pointer lock (desktop only)
+  if (!isMobile) {
+    canvas.addEventListener('click', () => {
+      if (!isPointerLocked) {
+        canvas.requestPointerLock();
+      }
+    });
+    document.addEventListener('pointerlockchange', () => {
+      isPointerLocked = document.pointerLockElement === canvas;
+    });
+  }
 
   // Lighting
   const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.8;
+  hemi.intensity = 1.1;
   const dir = new BABYLON.DirectionalLight('dir', new BABYLON.Vector3(-0.5, -1, 0.2), scene);
-  dir.intensity = 0.6;
+  dir.intensity = 0.85;
 
   // Ground/arena for a floor
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 50, height: 50 }, scene);
   const groundMat = new BABYLON.StandardMaterial('groundMat', scene);
-  groundMat.diffuseColor = new BABYLON.Color3(0.08, 0.1, 0.13);
+  groundMat.diffuseColor = new BABYLON.Color3(0.12, 0.14, 0.18);
   groundMat.specularColor = BABYLON.Color3.Black();
   ground.material = groundMat;
 
@@ -218,6 +233,15 @@ function createScene() {
   window.addEventListener('mousedown', (e) => {
     if (e.button === 0) tryAttack();
   });
+  // Touch attack for mobile (tap anywhere)
+  if (isMobile) {
+    canvas.addEventListener('touchstart', (e) => {
+      // ignore touches that start inside joystick or buttons; they have their own handlers
+      const touchedEl = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+      if (touchedEl && (touchedEl.id === 'joyLeft' || touchedEl.id === 'joyLeftStick' || touchedEl.closest && touchedEl.closest('#rightButtons'))) return;
+      tryAttack();
+    }, { passive: true });
+  }
 
   // Simple physics params
   const moveSpeed = 4.2;
@@ -436,3 +460,75 @@ window.addEventListener('keydown', (e) => {
     location.reload();
   }
 });
+
+// Virtual controls implementation
+function setupMobileControls() {
+  const area = document.getElementById('joyLeft');
+  const stick = document.getElementById('joyLeftStick');
+  const btnAtk = document.getElementById('btnAtk');
+  const btnUse = document.getElementById('btnUse');
+  const btnJump = document.getElementById('btnJump');
+  const btnSprint = document.getElementById('btnSprint');
+
+  let center = { x: 0, y: 0 };
+  let activeId = null;
+  const maxRadius = 60; // px
+  const deadZone = 8; // px
+
+  function updateStick(dx, dy) {
+    const dist = Math.min(maxRadius, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx);
+    const sx = Math.cos(angle) * dist;
+    const sy = Math.sin(angle) * dist;
+    stick.style.transform = `translate(calc(-50% + ${sx}px), calc(-50% + ${sy}px))`;
+
+    // Map to movement flags
+    input.forward = (sy < -deadZone);
+    input.back = (sy > deadZone);
+    input.left = (sx < -deadZone);
+    input.right = (sx > deadZone);
+  }
+
+  function resetStick() {
+    stick.style.transform = 'translate(-50%, -50%)';
+    input.forward = input.back = input.left = input.right = false;
+  }
+
+  area.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    activeId = t.identifier;
+    const rect = area.getBoundingClientRect();
+    center.x = rect.left + rect.width / 2;
+    center.y = rect.top + rect.height / 2;
+    updateStick(t.clientX - center.x, t.clientY - center.y);
+  }, { passive: true });
+
+  area.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === activeId) {
+        updateStick(t.clientX - center.x, t.clientY - center.y);
+        break;
+      }
+    }
+  }, { passive: true });
+
+  area.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === activeId) {
+        activeId = null;
+        resetStick();
+        break;
+      }
+    }
+  });
+
+  function press(btn, downFn, upFn) {
+    btn.addEventListener('touchstart', (e) => { downFn(); }, { passive: true });
+    btn.addEventListener('touchend', (e) => { if (upFn) upFn(); }, { passive: true });
+  }
+
+  if (btnAtk) press(btnAtk, () => tryAttack());
+  if (btnUse) press(btnUse, () => { input.interact = true; setTimeout(() => input.interact = false, 120); });
+  if (btnJump) press(btnJump, () => { input.jump = true; setTimeout(() => input.jump = false, 120); });
+  if (btnSprint) press(btnSprint, () => { input.sprint = true; }, () => { input.sprint = false; });
+}
