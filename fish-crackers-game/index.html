@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fish Eats Crackers</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #0b132b;
+        color: #edf2f4;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      #ui {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+        font-weight: 600;
+        font-size: 16px;
+        pointer-events: none;
+        user-select: none;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      }
+      #container {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      canvas {
+        background: linear-gradient(180deg, #1c2541, #3a506b);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        max-width: 94vw;
+        max-height: 82vh;
+      }
+      #overlay {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 24px;
+      }
+      .panel {
+        background: rgba(0,0,0,0.35);
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 12px;
+        padding: 18px 22px;
+        max-width: 560px;
+      }
+      .panel h1 {
+        margin: 0 0 8px 0;
+        font-size: 28px;
+      }
+      .panel p {
+        margin: 8px 0;
+        opacity: 0.9;
+      }
+      .panel kbd {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-weight: 700;
+      }
+      .panel button {
+        margin-top: 10px;
+        background: #00bcd4;
+        color: #001219;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .panel button:hover {
+        filter: brightness(1.05);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ui">
+      <div id="score">Score: 0</div>
+      <div id="life">Life: 5.0s</div>
+      <div id="level">Level: 1</div>
+    </div>
+    <div id="container">
+      <canvas id="game" width="960" height="540"></canvas>
+      <div id="overlay" hidden>
+        <div class="panel">
+          <h1 id="title">Fish Eats Crackers</h1>
+          <p id="subtitle">Eat crackers to extend your life. Avoid obstacles. Survive as long as you can!</p>
+          <p>Controls: <kbd>WASD</kbd> or <kbd>Arrow Keys</kbd> to swim, <kbd>Space</kbd> to dash.</p>
+          <button id="start">Start Game</button>
+        </div>
+      </div>
+    </div>
+    <script src="./game.js"></script>
+  </body>
+</html>
